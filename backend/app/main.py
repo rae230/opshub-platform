@@ -1,5 +1,11 @@
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+
 
 app = FastAPI(
     title="OpsHub API",
@@ -23,3 +29,24 @@ async def health_check():
         "status": "healthy",
         "service": "opshub-api",
     }
+
+
+@app.get("/health/database")
+def database_health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+
+        return {
+            "status": "healthy",
+            "service": "opshub-api",
+            "database": "connected",
+        }
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unhealthy",
+                "database": "disconnected",
+            },
+        )
